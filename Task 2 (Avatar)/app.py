@@ -16,7 +16,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 MEMORY_FILE = os.path.join(BASE, "boxbot_memory.json")
 
 # ---- Settings ----------------------------------------------------------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models"
 GROQ_STT_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
