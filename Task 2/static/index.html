@@ -1,0 +1,1600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BoxBot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#fff4e0; --bg2:#f6dbb0; --ink:#3b2412; --card:#fffcf5; --accent:#d62828;
+    --box:#c99a5b; --line:#e3c58f; --purple:#6f2dbd; --purple-dark:#561fa0;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:'Fredoka',system-ui,sans-serif; color:var(--ink);
+    background:radial-gradient(circle at 30% 20%,var(--bg1),var(--bg2));
+    display:flex; flex-direction:column;
+  }
+  header{display:flex;align-items:center;gap:10px;padding:10px 18px;flex-wrap:wrap}
+  header h1{font-size:22px;margin:0;font-weight:700;letter-spacing:.4px}
+  header h1 span{color:var(--accent)}
+  .spacer{flex:1}
+  .pill{font-size:13px;padding:5px 12px;border-radius:99px;background:#fff;border:2px solid var(--line);font-weight:500}
+  #status.live{background:#ffe3e3;border-color:#f3a3a3}
+  #status.wake{background:#e6f7ed;border-color:#8fd1a8}
+  #langSelect{
+    font:inherit;font-size:13px;font-weight:500;color:var(--ink);
+    padding:4px 10px;border-radius:99px;background:#fff;border:2px solid var(--line);
+    cursor:pointer;outline:none;
+  }
+  #langSelect:hover,#langSelect:focus{border-color:var(--ink)}
+  .toggle{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none;background:#fff;padding:4px 10px;border-radius:99px;border:2px solid var(--line)}
+
+  /* Main layout: Left Nav + Stage + Optional Skins Panel + Chat */
+  main{
+    flex:1;min-height:0;
+    display:grid;
+    grid-template-columns:126px 1fr 330px;
+    gap:14px;padding:0 18px 14px;
+  }
+  main.skins-open{
+    grid-template-columns:126px 1fr 336px 320px;
+  }
+
+  /* Left vertical nav */
+  .nav-rail{
+    background:var(--card);border:2.5px solid var(--line);border-radius:20px;
+    padding:10px 8px;display:flex;flex-direction:column;gap:8px;align-self:start;
+    box-shadow:0 4px 14px rgba(59,36,18,.06);
+  }
+  .nav-btn{
+    font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);
+    background:transparent;border:none;border-radius:13px;padding:10px 10px;
+    display:flex;align-items:center;gap:8px;cursor:pointer;text-align:left;
+    transition:all .15s;
+  }
+  .nav-btn:hover{background:#f5e6cc}
+  .nav-btn.active{background:var(--purple);color:#fff;box-shadow:0 3px 8px rgba(111,45,189,.28)}
+  .nav-ico{font-size:16px;width:20px;text-align:center}
+
+  /* Stage: shifted avatar & emotion chips higher + enlarged avatar */
+  .stage{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:0;padding-top:0;position:relative}
+  #bubble{
+    position:relative;width:min(540px,100%);min-height:60px;max-height:118px;overflow:auto;
+    background:#fff;border:3px solid var(--ink);border-radius:18px;padding:10px 16px;
+    font-size:16.5px;line-height:1.35;margin-bottom:8px;box-shadow:0 5px 0 rgba(59,36,18,.15);
+    transition:transform .25s ease; z-index:2;
+  }
+  #bubble::after{content:"";position:absolute;left:50%;bottom:-15px;width:18px;height:18px;background:#fff;
+    border-right:3px solid var(--ink);border-bottom:3px solid var(--ink);transform:translateX(-50%) rotate(45deg)}
+  .cursor::after{content:"▍";animation:blinkc .8s steps(2) infinite;opacity:.6}
+  @keyframes blinkc{50%{opacity:0}}
+
+  .stage-mid{
+    flex:0 1 auto;min-height:0;width:100%;display:flex;align-items:flex-start;justify-content:center;
+    position:relative;margin-top:-12px;
+  }
+  .quick-tools{
+    position:absolute;left:6px;top:46%;transform:translateY(-50%);
+    display:flex;flex-direction:column;gap:8px;z-index:3;
+  }
+  .qtool{
+    width:36px;height:36px;border-radius:50%;border:2px solid var(--line);background:#fff;
+    color:var(--ink);font-size:15px;cursor:pointer;display:grid;place-items:center;
+    box-shadow:0 2px 6px rgba(59,36,18,.08);transition:transform .12s, background .12s;
+  }
+  .qtool:hover{background:#f7e7cb;transform:scale(1.07)}
+  .qtool:active{transform:scale(.95)}
+
+  #avatar{width:min(450px,100%);height:min(445px,58vh);margin-top:0;cursor:pointer;overflow:visible;user-select:none}
+  .bar-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:-8px;max-width:560px;z-index:2}
+  .chip{font:inherit;font-size:12px;padding:4px 10px;border-radius:99px;border:2px solid var(--line);background:#fff;cursor:pointer;transition:all .15s}
+  .chip:hover{background:var(--line)}
+
+  /* Skins & Customization Studio Panel */
+  .skins-panel{
+    background:var(--card);border:3px solid var(--ink);border-radius:20px;
+    display:none;flex-direction:column;min-height:0;overflow:hidden;
+  }
+  main.skins-open .skins-panel{display:flex}
+  .skins-head{
+    display:flex;align-items:center;justify-content:space-between;padding:11px 14px;
+    border-bottom:2px solid var(--line);gap:8px;
+  }
+  .skins-head h2{margin:0;font-size:15.5px;display:flex;align-items:center;gap:6px}
+  .save-outfit-btn{
+    font:inherit;font-size:11.5px;font-weight:600;background:var(--purple);color:#fff;
+    border:none;border-radius:99px;padding:6px 11px;cursor:pointer;letter-spacing:.3px;
+  }
+  .save-outfit-btn:hover{background:var(--purple-dark)}
+  .skins-tabs{display:flex;gap:5px;padding:8px 12px;border-bottom:1.5px dashed var(--line);flex-wrap:wrap}
+  .stab{
+    font:inherit;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:99px;
+    border:1.5px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;
+  }
+  .stab.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+  .skins-body{flex:1;overflow:auto;padding:10px 12px;display:flex;flex-direction:column;gap:12px}
+  .cat-block h3{margin:0 0 6px;font-size:12.5px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+  .cat-block h3 span{color:#8c6a43;font-weight:500}
+  .swatch-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .swatch{
+    aspect-ratio:1;border-radius:11px;border:2px solid var(--line);background:#fff;
+    cursor:pointer;display:grid;place-items:center;font-size:18px;position:relative;
+    transition:transform .12s, border-color .12s;padding:0;
+  }
+  .swatch:hover{transform:translateY(-2px);border-color:#b58c56}
+  .swatch.selected{border:2.5px solid var(--purple);background:#f6efff;box-shadow:0 2px 6px rgba(111,45,189,.2)}
+  .swatch.selected::after{
+    content:"✓";position:absolute;top:-5px;right:-5px;width:15px;height:15px;border-radius:50%;
+    background:var(--purple);color:#fff;font-size:9.5px;font-weight:700;display:grid;place-items:center;
+  }
+  .color-dot{width:24px;height:24px;border-radius:7px;border:1.5px solid rgba(0,0,0,.2)}
+  .saved-card{
+    display:flex;align-items:center;justify-content:space-between;padding:8px 10px;
+    border-radius:12px;border:2px solid var(--line);background:#fff;font-size:13px;
+  }
+  .saved-card button{font:inherit;font-size:11.5px;padding:3px 9px;border-radius:99px;border:1.5px solid var(--ink);background:#ffe9c2;cursor:pointer}
+
+  /* Chat Panel */
+  .side{background:var(--card);border:3px solid var(--ink);border-radius:20px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .side-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:2px dashed var(--line)}
+  .side-head h2{margin:0;font-size:15px}
+  #memTag{font-size:11px;color:#7a5430;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+  #log{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+  .msg{padding:8px 12px;border-radius:14px;font-size:14px;max-width:88%;line-height:1.35;white-space:pre-wrap}
+  .msg.you{align-self:flex-end;background:#ffe1b0}
+  .msg.bot{align-self:flex-start;background:#fff;border:2px solid var(--line)}
+  form{display:flex;gap:8px;padding:12px;border-top:2px dashed var(--line)}
+  #input{flex:1;font:inherit;font-size:14.5px;padding:9px 13px;border-radius:99px;border:2px solid var(--ink);background:#fff;outline:none;min-width:0}
+  #input:focus{box-shadow:0 0 0 3px #f3c98a}
+  .btn{font:inherit;border:2px solid var(--ink);background:var(--box);color:#fff;border-radius:99px;padding:0 14px;cursor:pointer;font-weight:500}
+  .btn:disabled{opacity:.5;cursor:default}
+  #mic{width:42px;padding:0;background:#fff;color:var(--ink);font-size:17px;transition:transform .1s;flex-shrink:0}
+  #mic.rec{background:var(--accent);color:#fff;animation:pulse 1s infinite}
+  #mic.standby{background:#e6f7ed;border-color:#2a9d5c}
+  @keyframes pulse{50%{box-shadow:0 0 0 8px rgba(214,40,40,.25)}}
+  @media (max-width:1050px){
+    main, main.skins-open{grid-template-columns:1fr;grid-template-rows:auto}
+    .nav-rail{flex-direction:row;justify-content:center}
+    #avatar{height:330px}
+  }
+
+  /* ---------- avatar parts ---------- */
+  #bodyIdle,#bodyAct,#bodyLean{transform-origin:200px 392px}
+  #bodyIdle{animation:breathe 3.2s ease-in-out infinite}
+  #bodyLean{transition:transform .45s cubic-bezier(.3,1.5,.5,1)}
+  svg.lean-question #bodyLean{transform:rotate(-5.5deg) translateY(-2px)}
+
+  .eye,.brow{transform-box:fill-box;transform-origin:center;transition:transform .22s cubic-bezier(.3,1.6,.5,1)}
+  .pupilg{transition:transform .12s ease-out}
+  .eyeball,.pupilg,.arc,.sleeparc,.hearteye,.cheek,.fx,#tongue,.cos-item{transition:opacity .2s, transform .25s cubic-bezier(.3,1.5,.5,1)}
+  .arc,.sleeparc,.hearteye,.cheek,.fx,#talkGroup{opacity:0}
+  #mouth{transition:opacity .08s}
+
+  .cos-item{opacity:0;pointer-events:none}
+  .cos-item.on{opacity:1}
+
+  svg.e-happy .eyeball, svg.e-happy .pupilg, svg.e-laugh .eyeball, svg.e-laugh .pupilg,
+  svg.e-sleepy .eyeball, svg.e-sleepy .pupilg, svg.e-love .eyeball, svg.e-love .pupilg,
+  svg.e-wink #eyeR .eyeball, svg.e-wink #eyeR .pupilg{opacity:0}
+  svg.e-happy .arc, svg.e-laugh .arc, svg.e-wink #eyeR .arc{opacity:1}
+  svg.e-sleepy .sleeparc{opacity:1}
+  svg.e-love .hearteye{opacity:1;animation:heartbeat .8s ease-in-out infinite}
+  svg.e-happy .cheek, svg.e-excited .cheek, svg.e-love .cheek, svg.e-laugh .cheek, svg.e-wink .cheek, svg.e-angry .cheek{opacity:.85}
+  svg.e-excited #tongue, svg.e-laugh #tongue, svg.e-wink #tongue{opacity:1}
+  #tongue{opacity:0}
+  svg.talking #mouth, svg.talking #tongue{opacity:0}
+  svg.talking #talkGroup{opacity:1}
+
+  svg.e-sleepy .fx-zzz, svg.e-confused .fx-q, svg.e-surprised .fx-excl, svg.e-thinking .fx-dots,
+  svg.e-love .fx-hearts, svg.e-excited .fx-sparkle, svg.e-sad .fx-tear, svg.e-angry .fx-vein,
+  svg.e-listening .fx-wave, svg.hard-q .fx-sweat{opacity:1}
+
+  .z{font:600 28px 'Fredoka',sans-serif;fill:#5a7bd6;animation:zfloat 2.4s ease-in infinite}
+  .z2{animation-delay:.8s}.z3{animation-delay:1.6s}
+  .qm,.ex{font:600 54px 'Fredoka',sans-serif;transform-box:fill-box;transform-origin:center}
+  .qm{fill:#7b5cd6;animation:wobble 1.2s ease-in-out infinite}
+  .ex{fill:#e11d2e;animation:popin .4s cubic-bezier(.3,1.8,.5,1)}
+  .dot{fill:#3b2412;animation:dots 1.2s infinite}
+  .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+  .heart{animation:rise 2s ease-out infinite}
+  .h2{animation-delay:.6s}.h3{animation-delay:1.2s}
+  .star{transform-box:fill-box;transform-origin:center;animation:twinkle 1s ease-in-out infinite}
+  .s2{animation-delay:.25s}.s3{animation-delay:.5s}.s4{animation-delay:.75s}
+  .tear{animation:tear 1.6s ease-in infinite}
+  .sweat{animation:sweatDrop 1.4s ease-in-out infinite}
+  .vein{animation:vein .5s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:center}
+  .wave{fill:none;stroke:#d62828;stroke-width:4;stroke-linecap:round;animation:wave 1s ease-in-out infinite}
+  .wave:nth-child(2){animation-delay:.2s}.wave:nth-child(3){animation-delay:.4s}
+  #peel{transform-box:fill-box;transform-origin:0% 100%;animation:peel 2.2s ease-in-out infinite}
+  svg.e-angry #peel{animation:peelAngry .35s ease-in-out infinite}
+
+  svg.a-happy #bodyAct{animation:hop 1.1s ease-in-out infinite}
+  svg.a-bounce #bodyAct{animation:hop .6s ease-in-out infinite}
+  svg.a-shake #bodyAct{animation:shake .12s linear infinite}
+  svg.a-rage #bodyAct{animation:shake .07s linear infinite}
+  svg.a-tilt #bodyAct{animation:tilt 2s ease-in-out infinite}
+  svg.a-think #bodyAct{animation:thinkSearch 2.4s ease-in-out infinite}
+  svg.a-sink #bodyAct{transform:scale(1,.95);animation:sink 3s ease-in-out infinite}
+  svg.a-pop #bodyAct{animation:pop .6s ease-out 1}
+  svg.a-sleep #bodyAct{animation:sleep 4s ease-in-out infinite}
+  svg.a-talk #bodyAct{animation:talkbob .35s ease-in-out infinite}
+  svg.a-listen #bodyAct{animation:listen 1s ease-in-out infinite}
+  svg.poke #bodyIdle{animation:squish .45s ease-out 1}
+  svg.a-happy #shadow,svg.a-bounce #shadow{animation:shadowhop .6s ease-in-out infinite}
+
+  @keyframes breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.012,.988)}}
+  @keyframes hop{0%,100%{transform:translateY(0) scale(1.03,.95)}45%{transform:translateY(-16px) scale(.97,1.04)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px) rotate(-1deg)}75%{transform:translateX(4px) rotate(1deg)}}
+  @keyframes tilt{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+  @keyframes thinkSearch{0%,100%{transform:rotate(-4deg) translateY(-1px)}50%{transform:rotate(4deg) translateY(0)}}
+  @keyframes sink{0%,100%{transform:scale(1,.95) translateY(2px)}50%{transform:scale(1.01,.93) translateY(4px)}}
+  @keyframes pop{0%{transform:translateY(0)}35%{transform:translateY(-20px) scale(.96,1.05)}100%{transform:translateY(0)}}
+  @keyframes sleep{0%,100%{transform:scale(1,1)}50%{transform:scale(1.03,.97)}}
+  @keyframes talkbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  @keyframes listen{0%,100%{transform:scale(1.02,1.02)}50%{transform:scale(1.04,1.0)}}
+  @keyframes squish{0%{transform:scale(1,1)}30%{transform:scale(1.14,.82)}65%{transform:scale(.94,1.1)}100%{transform:scale(1,1)}}
+  @keyframes shadowhop{0%,100%{transform:scale(1)}45%{transform:scale(.8)}}
+  #shadow{transform-box:fill-box;transform-origin:center}
+  @keyframes heartbeat{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+  @keyframes zfloat{0%{transform:translate(0,10px);opacity:0}30%{opacity:1}100%{transform:translate(16px,-22px);opacity:0}}
+  @keyframes wobble{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+  @keyframes popin{0%{transform:scale(0)}100%{transform:scale(1)}}
+  @keyframes dots{0%,100%{opacity:.2;transform:translateY(0)}50%{opacity:1;transform:translateY(-5px)}}
+  @keyframes rise{0%{transform:translateY(16px) scale(.5);opacity:0}25%{opacity:1}100%{transform:translateY(-26px) scale(1.15);opacity:0}}
+  @keyframes twinkle{0%,100%{transform:scale(.3) rotate(0);opacity:.3}50%{transform:scale(1.1) rotate(45deg);opacity:1}}
+  @keyframes tear{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(60px);opacity:0}}
+  @keyframes sweatDrop{0%{transform:translateY(-4px) scale(.85);opacity:0}25%{opacity:1}85%{transform:translateY(26px) scale(1.05);opacity:1}100%{transform:translateY(34px);opacity:0}}
+  @keyframes vein{to{transform:scale(1.3)}}
+  @keyframes wave{0%,100%{opacity:.2}50%{opacity:1}}
+  @keyframes peel{0%,100%{transform:rotate(0)}50%{transform:rotate(-14deg)}}
+  @keyframes peelAngry{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(-34deg)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Box<span>Bot</span></h1>
+  <div id="status" class="pill">Ready</div>
+  <select id="langSelect" title="Choose BoxBot's reply and voice language">
+    <option value="auto">🌐 Auto Language</option>
+    <option value="en">🇬🇧 English</option>
+    <option value="ta">🇮🇳 தமிழ் (Tamil)</option>
+    <option value="hi">🇮🇳 हिन्दी (Hindi)</option>
+    <option value="es">🇪🇸 Español</option>
+    <option value="fr">🇫🇷 Français</option>
+    <option value="ja">🇯🇵 日本語</option>
+    <option value="ko">🇰🇷 한국어</option>
+    <option value="de">🇩🇪 Deutsch</option>
+    <option value="ar">🇸🇦 العربية</option>
+  </select>
+  <div class="spacer"></div>
+  <label class="toggle" title="Say 'Hey Box' anytime or speak after clicking mic—auto-stops when you finish">
+    <input type="checkbox" id="handsFreeToggle"> Hands-free ("Hey Box")
+  </label>
+  <label class="toggle"><input type="checkbox" id="voiceToggle" checked> Voice reply</label>
+</header>
+
+<main id="mainGrid" class="skins-open">
+  <!-- Left Navigation Rail -->
+  <nav class="nav-rail" aria-label="BoxBot Modes">
+    <button type="button" class="nav-btn" data-nav="chat"><span class="nav-ico">💬</span> Chat</button>
+    <button type="button" class="nav-btn active" data-nav="skins"><span class="nav-ico">👕</span> Skins</button>
+    <button type="button" class="nav-btn" data-nav="collection"><span class="nav-ico">📚</span> Collection</button>
+    <button type="button" class="nav-btn" data-nav="randomize"><span class="nav-ico">🎲</span> Randomize</button>
+  </nav>
+
+  <!-- Center Stage -->
+  <section class="stage">
+    <div id="bubble">Hi! I'm BoxBot. Ask me anything, pick a language up top, or customize my outfit!</div>
+
+    <div class="stage-mid">
+      <!-- Quick Undo / Redo / Reset / Shuffle tools -->
+      <div class="quick-tools">
+        <button type="button" class="qtool" id="btnUndo" title="Undo outfit change">↩️</button>
+        <button type="button" class="qtool" id="btnRedo" title="Redo outfit change">↪️</button>
+        <button type="button" class="qtool" id="btnResetOutfit" title="Reset to classic cardboard">🔄</button>
+        <button type="button" class="qtool" id="btnShuffleOutfit" title="Randomize outfit">🔀</button>
+      </div>
+
+      <svg id="avatar" viewBox="10 15 390 425" class="e-happy" aria-label="BoxBot cardboard box avatar">
+        <defs>
+          <clipPath id="frontClip"><rect x="60" y="130" width="260" height="260" rx="3"/></clipPath>
+          <clipPath id="mouthClip"><path id="mouthClipPath" d=""/></clipPath>
+          <clipPath id="talkClip"><path id="talkClipPath" d="M 182 280 Q 200 276 218 280 Q 218 286 200 286 Q 182 286 182 280 Z"/></clipPath>
+          <pattern id="corr" width="8" height="8" patternUnits="userSpaceOnUse">
+            <line x1="0" y1="4" x2="8" y2="4" stroke="#000" stroke-opacity=".06" stroke-width="2"/>
+          </pattern>
+          <pattern id="woodGrain" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M0 6 Q12 2 24 6 M0 18 Q12 22 24 18" fill="none" stroke="#4a2c11" stroke-width="1.5" stroke-opacity=".28"/>
+          </pattern>
+          <pattern id="spiderWeb" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M0 0 L40 40 M40 0 L0 40 M20 0 L20 40 M0 20 L40 20" stroke="#111" stroke-width="1.2" stroke-opacity=".25"/>
+          </pattern>
+          <linearGradient id="tapeSheen" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#fff" stop-opacity=".55"/>
+            <stop offset=".5" stop-color="#fff" stop-opacity=".05"/>
+            <stop offset="1" stop-color="#fff" stop-opacity=".3"/>
+          </linearGradient>
+        </defs>
+
+        <ellipse id="shadow" cx="208" cy="428" rx="150" ry="13" fill="#000" opacity=".18"/>
+
+        <g id="bodyIdle"><g id="bodyAct"><g id="bodyLean">
+          <!-- feet -->
+          <rect id="footL" x="105" y="384" width="56" height="18" rx="9" fill="#6b4a2a"/>
+          <rect id="footR" x="235" y="384" width="56" height="18" rx="9" fill="#6b4a2a"/>
+
+          <!-- box faces (dynamically colored by skin/color selection) -->
+          <polygon id="boxSide" points="320,130 360,92 360,352 320,390" fill="#a97b43"/>
+          <polygon points="320,130 360,92 360,352 320,390" fill="url(#corr)"/>
+          <polygon id="boxTop" points="60,130 100,92 360,92 320,130" fill="#dcb67e"/>
+          <polygon points="60,130 100,92 360,92 320,130" fill="url(#corr)"/>
+          <line x1="80" y1="111" x2="340" y2="111" stroke="#8a6232" stroke-width="2" stroke-opacity=".6"/>
+          <rect id="boxFront" x="60" y="130" width="260" height="260" rx="3" fill="#c99a5b"/>
+          <rect id="boxTex" x="60" y="130" width="260" height="260" rx="3" fill="url(#corr)"/>
+
+          <!-- Theme / Superhero Front Overlays -->
+          <g clip-path="url(#frontClip)">
+            <g id="skinGalaxy" class="cos-item" fill="#fff">
+              <circle cx="95" cy="175" r="2.2"/><circle cx="285" cy="168" r="2.8"/><circle cx="110" cy="330" r="2"/>
+              <circle cx="290" cy="295" r="2.5"/><circle cx="195" cy="150" r="1.8"/><circle cx="78" cy="255" r="2.2"/>
+              <path d="M265 190 L267 196 L273 198 L267 200 L265 206 L263 200 L257 198 L263 196 Z" fill="#a78bfa"/>
+            </g>
+            <g id="skinCyber" class="cos-item" fill="none" stroke="#00f5d4" stroke-width="2.5" opacity=".75">
+              <path d="M60 165 H105 L120 180 H145"/><circle cx="145" cy="180" r="3.5" fill="#00f5d4"/>
+              <path d="M320 165 H275 L260 180 H235"/><circle cx="235" cy="180" r="3.5" fill="#00f5d4"/>
+              <path d="M60 335 H115 L130 320 H165"/><circle cx="165" cy="320" r="3.5" fill="#00f5d4"/>
+            </g>
+            <g id="skinMagma" class="cos-item" fill="none" stroke="#ffbe0b" stroke-width="3" stroke-linecap="round">
+              <path d="M70 145 L95 170 L85 195 L105 215"/>
+              <path d="M310 155 L285 180 L298 205"/>
+              <path d="M90 375 L115 350 L140 362 L160 340"/>
+            </g>
+            <g id="skinIron" class="cos-item" transform="translate(135,342)">
+              <circle r="22" fill="#1e293b" stroke="#ffd166" stroke-width="3"/>
+              <circle r="13" fill="#38bdf8" stroke="#e0f2fe" stroke-width="2.5"/>
+              <circle r="6" fill="#fff"/>
+            </g>
+            <g id="skinCap" class="cos-item" transform="translate(135,342)">
+              <circle r="24" fill="#d62828" stroke="#fff" stroke-width="2"/>
+              <circle r="17" fill="#fff"/><circle r="11" fill="#d62828"/><circle r="6" fill="#1d4ed8"/>
+              <polygon points="0,-5 1.5,-1.5 5,-1.5 2,1 3,4.5 0,2.5 -3,4.5 -2,1 -5,-1.5 -1.5,-1.5" fill="#fff"/>
+            </g>
+            <g id="skinSuper" class="cos-item" transform="translate(135,342)">
+              <polygon points="-24,-6 -12,-18 12,-18 24,-6 0,20" fill="#ffd166" stroke="#d62828" stroke-width="3"/>
+              <text x="0" y="5" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="700" font-size="20" fill="#d62828">S</text>
+            </g>
+          </g>
+
+          <rect x="60" y="130" width="260" height="260" rx="3" fill="none" stroke="#7a5430" stroke-width="3"/>
+          <polygon points="60,130 100,92 360,92 360,352 320,390 320,130" fill="none" stroke="#7a5430" stroke-width="3" stroke-linejoin="round"/>
+
+          <!-- top seam tape -->
+          <polygon points="72,120 88,102 348,102 332,120" fill="#ecdcab" fill-opacity=".92" stroke="#bfa968" stroke-width="1.5"/>
+          <polygon points="72,120 88,102 348,102 332,120" fill="url(#tapeSheen)"/>
+          <g transform="translate(332,120)"><polygon id="peel" points="0,0 16,-18 38,-18 22,0" fill="#ecdcab" stroke="#bfa968" stroke-width="1.5"/></g>
+
+          <!-- criss-cross tape on the front corners -->
+          <g clip-path="url(#frontClip)">
+            <g id="tapes" fill="#ecdcab" fill-opacity=".92" stroke="#bfa968" stroke-width="1.5">
+              <g transform="translate(84,156) rotate(40)"><rect x="-52" y="-13" width="104" height="26"/><rect x="-52" y="-13" width="104" height="26" fill="url(#tapeSheen)" stroke="none"/></g>
+              <g transform="translate(84,156) rotate(-40)"><rect x="-52" y="-13" width="104" height="26"/><rect x="-52" y="-13" width="104" height="26" fill="url(#tapeSheen)" stroke="none"/></g>
+              <g transform="translate(298,154) rotate(40)"><rect x="-48" y="-13" width="96" height="26"/><rect x="-48" y="-13" width="96" height="26" fill="url(#tapeSheen)" stroke="none"/></g>
+              <g transform="translate(298,154) rotate(-40)"><rect x="-48" y="-13" width="96" height="26"/><rect x="-48" y="-13" width="96" height="26" fill="url(#tapeSheen)" stroke="none"/></g>
+              <g transform="translate(84,366) rotate(40)"><rect x="-52" y="-13" width="104" height="26"/><rect x="-52" y="-13" width="104" height="26" fill="url(#tapeSheen)" stroke="none"/></g>
+              <g transform="translate(84,366) rotate(-40)"><rect x="-52" y="-13" width="104" height="26"/><rect x="-52" y="-13" width="104" height="26" fill="url(#tapeSheen)" stroke="none"/></g>
+              <g transform="translate(316,372) rotate(40)"><rect x="-45" y="-13" width="90" height="26"/><rect x="-45" y="-13" width="90" height="26" fill="url(#tapeSheen)" stroke="none"/></g>
+              <g transform="translate(316,372) rotate(-40)"><rect x="-45" y="-13" width="90" height="26"/><rect x="-45" y="-13" width="90" height="26" fill="url(#tapeSheen)" stroke="none"/></g>
+            </g>
+          </g>
+
+          <!-- tape wrapping the right side -->
+          <polygon points="320,220 360,182 360,210 320,248" fill="#e2cf98" fill-opacity=".92" stroke="#bfa968" stroke-width="1.5"/>
+          <polygon points="320,280 360,242 360,270 320,308" fill="#e2cf98" fill-opacity=".92" stroke="#bfa968" stroke-width="1.5"/>
+
+          <!-- FRAGILE sticker -->
+          <g transform="translate(246,348) rotate(-6)">
+            <rect x="-56" y="-31" width="112" height="62" rx="7" fill="#d62828" stroke="#fff" stroke-width="3"/>
+            <rect x="-56" y="-31" width="112" height="62" rx="7" fill="none" stroke="#7d1010" stroke-width="1.5"/>
+            <g transform="translate(-34,0)" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M-11 -20 L11 -20 Q11 2 0 4 Q-11 2 -11 -20 Z"/>
+              <path d="M0 4 L0 18 M-9 19 L9 19"/>
+              <path d="M-3 -20 L2 -10 L-2 -4 L3 3" stroke-width="1.6"/>
+            </g>
+            <text x="10" y="-3" text-anchor="middle" font-family="Fredoka,Arial,sans-serif" font-weight="700" font-size="19" fill="#fff" letter-spacing="1">FRAGILE</text>
+            <text x="10" y="14" text-anchor="middle" font-family="Fredoka,Arial,sans-serif" font-weight="600" font-size="8" fill="#fff" letter-spacing=".6">HANDLE WITH CARE</text>
+          </g>
+
+          <!-- ===== HATS COLLECTION ===== -->
+          <g id="hat-cap" class="cos-item" transform="translate(205,112) rotate(-5)">
+            <path d="M-56 0 C-56 -48 56 -48 56 0 Z" fill="#d62828" stroke="#3b2412" stroke-width="3"/>
+            <path d="M-85 0 Q-30 -10 56 0 Q10 10 -85 4 Z" fill="#b51d1d" stroke="#3b2412" stroke-width="3" stroke-linejoin="round"/>
+            <circle cx="0" cy="-38" r="5" fill="#fff" stroke="#3b2412" stroke-width="2"/>
+            <text x="6" y="-12" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="700" font-size="22" fill="#fff">BB</text>
+          </g>
+          <g id="hat-tophat" class="cos-item" transform="translate(205,110) rotate(-6)">
+            <ellipse cx="0" cy="0" rx="64" ry="11" fill="#222" stroke="#111" stroke-width="3"/>
+            <rect x="-38" y="-66" width="76" height="66" rx="6" fill="#2a2a32" stroke="#111" stroke-width="3"/>
+            <rect x="-38" y="-16" width="76" height="12" fill="#d62828"/>
+          </g>
+          <g id="hat-crown" class="cos-item" transform="translate(205,112) rotate(-4)">
+            <polygon points="-46,0 -52,-46 -22,-22 0,-56 22,-22 52,-46 46,0" fill="#ffd23f" stroke="#3b2412" stroke-width="3" stroke-linejoin="round"/>
+            <circle cx="-52" cy="-49" r="5" fill="#ff5964"/><circle cx="0" cy="-59" r="6" fill="#35a7ff"/><circle cx="52" cy="-49" r="5" fill="#6bf178"/>
+            <circle cx="0" cy="-14" r="6" fill="#d62828"/>
+          </g>
+          <g id="hat-cowboy" class="cos-item" transform="translate(205,112) rotate(-5)">
+            <path d="M-76 -6 Q0 14 76 -6 Q58 14 0 12 Q-58 14 -76 -6 Z" fill="#8c5327" stroke="#3b2412" stroke-width="3"/>
+            <path d="M-40 2 C-38 -42 -12 -46 0 -32 C12 -46 38 -42 40 2 Z" fill="#a46434" stroke="#3b2412" stroke-width="3"/>
+            <rect x="-39" y="-8" width="78" height="7" fill="#3b2412"/>
+          </g>
+          <g id="hat-wizard" class="cos-item" transform="translate(205,112) rotate(-6)">
+            <ellipse cx="0" cy="0" rx="68" ry="12" fill="#5a189a" stroke="#240046" stroke-width="3"/>
+            <path d="M-42 0 L8 -82 L42 0 Z" fill="#7b2cbf" stroke="#240046" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M-4 -44 L-1 -37 L6 -37 L0 -32 L2 -25 L-4 -30 L-10 -25 L-8 -32 L-14 -37 L-7 -37 Z" fill="#ffd23f"/>
+            <circle cx="14" cy="-20" r="3.5" fill="#ffd23f"/>
+          </g>
+          <g id="hat-party" class="cos-item" transform="translate(205,110) rotate(-8)">
+            <polygon points="-34,0 0,-78 34,0" fill="#ff5964" stroke="#3b2412" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M-24 -22 L20 -32 M-14 -46 L11 -52" stroke="#ffd23f" stroke-width="5" stroke-linecap="round"/>
+            <circle cx="0" cy="-82" r="10" fill="#ffd23f" stroke="#3b2412" stroke-width="2.5"/>
+            <ellipse cx="0" cy="1" rx="36" ry="6" fill="#fff" stroke="#3b2412" stroke-width="2.5"/>
+          </g>
+
+          <!-- ===== FACE ===== -->
+          <g id="face">
+            <g id="mask-bat" class="cos-item">
+              <path d="M118 192 H282 V246 L245 236 L200 246 L155 236 L118 246 Z" fill="#1e1e24" stroke="#000" stroke-width="2.5"/>
+              <polygon points="122,192 132,162 148,192" fill="#1e1e24" stroke="#000" stroke-width="2.5"/>
+              <polygon points="278,192 268,162 252,192" fill="#1e1e24" stroke="#000" stroke-width="2.5"/>
+            </g>
+
+            <ellipse class="cheek" cx="124" cy="266" rx="17" ry="10" fill="#ff7f7f"/>
+            <ellipse class="cheek" cx="276" cy="266" rx="17" ry="10" fill="#ff7f7f"/>
+
+            <g transform="translate(160,225)" id="eyeL">
+              <g class="eye">
+                <g class="eyeball"><ellipse rx="25" ry="29" fill="#fff" stroke="#3b2412" stroke-width="3.5"/></g>
+                <g class="pupilg"><circle cy="2" r="12" fill="#2a1a0e"/><circle cx="-4" cy="-3" r="4.5" fill="#fff"/></g>
+                <path class="arc" d="M-22 8 Q0 -22 22 8" fill="none" stroke="#3b2412" stroke-width="6" stroke-linecap="round"/>
+                <path class="sleeparc" d="M-22 -2 Q0 14 22 -2" fill="none" stroke="#3b2412" stroke-width="6" stroke-linecap="round"/>
+                <path class="hearteye" d="M0 16 C-28 -4 -20 -24 0 -9 C20 -24 28 -4 0 16 Z" fill="#ff3b6b" stroke="#a3173d" stroke-width="2"/>
+              </g>
+            </g>
+            <g transform="translate(240,225)" id="eyeR">
+              <g class="eye">
+                <g class="eyeball"><ellipse rx="25" ry="29" fill="#fff" stroke="#3b2412" stroke-width="3.5"/></g>
+                <g class="pupilg"><circle cy="2" r="12" fill="#2a1a0e"/><circle cx="-4" cy="-3" r="4.5" fill="#fff"/></g>
+                <path class="arc" d="M-22 8 Q0 -22 22 8" fill="none" stroke="#3b2412" stroke-width="6" stroke-linecap="round"/>
+                <path class="sleeparc" d="M-22 -2 Q0 14 22 -2" fill="none" stroke="#3b2412" stroke-width="6" stroke-linecap="round"/>
+                <path class="hearteye" d="M0 16 C-28 -4 -20 -24 0 -9 C20 -24 28 -4 0 16 Z" fill="#ff3b6b" stroke="#a3173d" stroke-width="2"/>
+              </g>
+            </g>
+
+            <!-- ===== GLASSES COLLECTION ===== -->
+            <g id="glass-square" class="cos-item">
+              <path d="M116 216 L128 216 M272 216 L284 216" stroke="#1f1a17" stroke-width="5" stroke-linecap="round"/>
+              <rect x="128" y="200" width="64" height="48" rx="9" fill="none" stroke="#1f1a17" stroke-width="6"/>
+              <rect x="208" y="200" width="64" height="48" rx="9" fill="none" stroke="#1f1a17" stroke-width="6"/>
+              <path d="M192 218 H208" stroke="#1f1a17" stroke-width="6"/>
+            </g>
+            <g id="glass-round" class="cos-item">
+              <path d="M116 222 L130 222 M270 222 L284 222" stroke="#3b2412" stroke-width="4"/>
+              <circle cx="160" cy="224" r="30" fill="none" stroke="#3b2412" stroke-width="4.5"/>
+              <circle cx="240" cy="224" r="30" fill="none" stroke="#3b2412" stroke-width="4.5"/>
+              <path d="M190 222 Q200 216 210 222" fill="none" stroke="#3b2412" stroke-width="4.5"/>
+            </g>
+            <g id="glass-shades" class="cos-item">
+              <path d="M118 214 L128 216 M272 216 L284 212" stroke="#1f1a17" stroke-width="5" stroke-linecap="round"/>
+              <rect x="128" y="204" width="64" height="40" rx="10" fill="#1e1e24" stroke="#111" stroke-width="3.5"/>
+              <rect x="208" y="204" width="64" height="40" rx="10" fill="#1e1e24" stroke="#111" stroke-width="3.5"/>
+              <path d="M192 214 Q200 210 208 214" fill="none" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+              <path d="M138 211 L154 211 L142 235 L134 235 Z" fill="#fff" opacity=".24"/>
+              <path d="M218 211 L234 211 L222 235 L214 235 Z" fill="#fff" opacity=".24"/>
+            </g>
+            <g id="glass-pixel" class="cos-item">
+              <rect x="120" y="208" width="160" height="10" fill="#111"/>
+              <rect x="130" y="218" width="60" height="12" fill="#111"/>
+              <rect x="138" y="230" width="44" height="10" fill="#111"/>
+              <rect x="210" y="218" width="60" height="12" fill="#111"/>
+              <rect x="218" y="230" width="44" height="10" fill="#111"/>
+              <rect x="142" y="214" width="8" height="8" fill="#fff"/>
+              <rect x="150" y="222" width="8" height="8" fill="#fff"/>
+              <rect x="222" y="214" width="8" height="8" fill="#fff"/>
+              <rect x="230" y="222" width="8" height="8" fill="#fff"/>
+            </g>
+            <g id="glass-visor" class="cos-item">
+              <rect x="122" y="202" width="156" height="44" rx="18" fill="#00f5d4" fill-opacity=".82" stroke="#f72585" stroke-width="5"/>
+              <path d="M138 210 L175 210 L155 238 L134 238 Z" fill="#fff" opacity=".45"/>
+            </g>
+
+            <g transform="translate(160,180)" id="browL"><g class="brow"><path d="M-24 0 Q0 -8 24 0" fill="none" stroke="#3b2412" stroke-width="7" stroke-linecap="round"/></g></g>
+            <g transform="translate(240,180)" id="browR"><g class="brow"><path d="M-24 0 Q0 -8 24 0" fill="none" stroke="#3b2412" stroke-width="7" stroke-linecap="round"/></g></g>
+
+            <ellipse id="tongue" cx="200" cy="304" rx="17" ry="11" fill="#ff6f86" clip-path="url(#mouthClip)"/>
+            <path id="mouth" d="M170 278 Q200 286 230 278" fill="none" stroke="#3b2412" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+            <g id="talkGroup">
+              <path id="talkFill" d="M 182 280 Q 200 276 218 280 Q 218 286 200 286 Q 182 286 182 280 Z" fill="#4a1a1a"/>
+              <g clip-path="url(#talkClip)">
+                <rect id="talkTeeth" x="170" y="266" width="60" height="9" rx="3" fill="#fff"/>
+                <ellipse id="talkTongue" cx="200" cy="302" rx="16" ry="11" fill="#ff6f86"/>
+              </g>
+              <path id="talkStroke" d="M 182 280 Q 200 276 218 280 Q 218 286 200 286 Q 182 286 182 280 Z" fill="none" stroke="#3b2412" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+            </g>
+          </g>
+
+          <!-- ===== SCARF COLLECTION ===== -->
+          <g id="scarfGroup" class="cos-item">
+            <path id="scarfBand" d="M62 372 Q190 392 318 370 L318 394 Q190 414 62 394 Z" fill="#e63946" stroke="#3b2412" stroke-width="3" stroke-linejoin="round"/>
+            <path id="scarfStripes" d="M110 380 L110 399 M160 384 L160 404 M215 384 L215 404 M270 379 L270 398" stroke="#ffd166" stroke-width="5"/>
+            <g transform="translate(128,392) rotate(6)">
+              <rect id="scarfTail" x="-13" y="0" width="26" height="46" rx="5" fill="#e63946" stroke="#3b2412" stroke-width="3"/>
+              <line id="scarfTailS1" x1="-12" y1="16" x2="12" y2="16" stroke="#ffd166" stroke-width="5"/>
+              <line id="scarfTailS2" x1="-12" y1="31" x2="12" y2="31" stroke="#ffd166" stroke-width="5"/>
+              <path id="scarfFringe" d="M-8 46 L-8 54 M0 46 L0 55 M8 46 L8 54" stroke="#ffd166" stroke-width="2.5" stroke-linecap="round"/>
+            </g>
+          </g>
+
+          <!-- ===== EFFECTS ===== -->
+          <g id="fxlayer">
+            <g class="fx fx-zzz"><text class="z z1" x="316" y="82">Z</text><text class="z z2" x="316" y="82">z</text><text class="z z3" x="316" y="82">z</text></g>
+            <g class="fx fx-q"><text class="qm" x="285" y="82">?</text></g>
+            <g class="fx fx-excl"><text class="ex" x="290" y="82">!</text></g>
+            <g class="fx fx-dots"><circle class="dot" cx="270" cy="66" r="7"/><circle class="dot" cx="296" cy="66" r="7"/><circle class="dot" cx="322" cy="66" r="7"/></g>
+            <g class="fx fx-hearts">
+              <g transform="translate(150,80)"><path class="heart h1" d="M0 8 C-14 -4 -10 -16 0 -8 C10 -16 14 -4 0 8 Z" fill="#ff3b6b"/></g>
+              <g transform="translate(205,70)"><path class="heart h2" d="M0 8 C-14 -4 -10 -16 0 -8 C10 -16 14 -4 0 8 Z" fill="#ff6b8b"/></g>
+              <g transform="translate(262,80)"><path class="heart h3" d="M0 8 C-14 -4 -10 -16 0 -8 C10 -16 14 -4 0 8 Z" fill="#ff3b6b"/></g>
+            </g>
+            <g class="fx fx-sparkle" fill="#ffd23f" stroke="#e0a800" stroke-width="1.5">
+              <path class="star s1" transform="translate(34,130)" d="M0 -14 L3.5 -3.5 L14 0 L3.5 3.5 L0 14 L-3.5 3.5 L-14 0 L-3.5 -3.5 Z"/>
+              <path class="star s2" transform="translate(376,116)" d="M0 -14 L3.5 -3.5 L14 0 L3.5 3.5 L0 14 L-3.5 3.5 L-14 0 L-3.5 -3.5 Z"/>
+              <path class="star s3" transform="translate(28,310)" d="M0 -14 L3.5 -3.5 L14 0 L3.5 3.5 L0 14 L-3.5 3.5 L-14 0 L-3.5 -3.5 Z"/>
+              <path class="star s4" transform="translate(380,320)" d="M0 -14 L3.5 -3.5 L14 0 L3.5 3.5 L0 14 L-3.5 3.5 L-14 0 L-3.5 -3.5 Z"/>
+            </g>
+            <g class="fx fx-tear"><path class="tear" transform="translate(136,256)" d="M0 -10 Q9 4 0 10 Q-9 4 0 -10 Z" fill="#6ec1ff" stroke="#2e86c9" stroke-width="1.5"/></g>
+            <g class="fx fx-sweat"><path class="sweat" transform="translate(292,175)" d="M0 -16 Q13 5 0 15 Q-13 5 0 -16 Z" fill="#7cd4ff" stroke="#1e78b8" stroke-width="2.2"/></g>
+            <g class="fx fx-vein"><g transform="translate(330,72)" class="vein" fill="none" stroke="#e11d2e" stroke-width="4" stroke-linecap="round"><path d="M-11 -4 Q-4 -4 -4 -11"/><path d="M11 -4 Q4 -4 4 -11"/><path d="M-11 4 Q-4 4 -4 11"/><path d="M11 4 Q4 4 4 11"/></g></g>
+            <g class="fx fx-wave"><path class="wave" d="M330 60 q10 8 0 16"/><path class="wave" d="M342 54 q14 14 0 28"/><path class="wave" d="M356 48 q18 20 0 40"/></g>
+          </g>
+        </g></g></g>
+      </svg>
+    </div>
+
+    <!-- Emotion preview chips -->
+    <div class="bar-row" id="chips"></div>
+  </section>
+
+  <!-- Skins & Customization Studio Drawer -->
+  <section class="skins-panel" aria-label="Skins and Customization">
+    <div class="skins-head">
+      <h2>✨ Skins & Customization</h2>
+      <button type="button" class="save-outfit-btn" id="btnSaveOutfit">SAVE OUTFIT ♡</button>
+    </div>
+    <div class="skins-tabs">
+      <button type="button" class="stab active" data-stab="categories">Categories</button>
+      <button type="button" class="stab" data-stab="myskins">My Skins</button>
+      <button type="button" class="stab" data-stab="presets">Presets</button>
+    </div>
+    <div class="skins-body" id="skinsBody"></div>
+  </section>
+
+  <!-- Chat Panel -->
+  <aside class="side">
+    <div class="side-head">
+      <h2>Chat</h2>
+      <span id="memTag" title="Click to reset BoxBot's memory">Memory: empty</span>
+    </div>
+    <div id="log"></div>
+    <form id="form" autocomplete="off">
+      <button type="button" id="mic" class="btn" title="Talk to BoxBot">🎤</button>
+      <input id="input" placeholder="Ask BoxBot anything…" autofocus>
+      <button class="btn" id="send" type="submit">Send</button>
+    </form>
+  </aside>
+</main>
+
+<script>
+/* ============ Emotion table ============ */
+const SMILE_OPEN_BIG = 'M158 264 Q200 332 242 264 Z';
+const EMO = {
+  neutral:  {mouth:'M172 278 Q200 286 228 278', brow:[[0,0],[0,0]], eye:[1,1], look:[0,0]},
+  happy:    {mouth:'M162 268 Q200 308 238 268', brow:[[-6,-4],[-6,4]], eye:[1,1], look:[0,0], anim:'a-happy'},
+  excited:  {mouth:SMILE_OPEN_BIG, open:true, brow:[[-14,-6],[-14,6]], eye:[1.12,1.12], look:[0,-2], anim:'a-bounce'},
+  laugh:    {mouth:'M156 262 Q200 338 244 262 Z', open:true, brow:[[-8,-6],[-8,6]], eye:[1,1], look:[0,0], anim:'a-shake'},
+  sad:      {mouth:'M170 290 Q200 264 230 290', brow:[[0,-16],[0,16]], eye:[.95,.9], look:[0,6], anim:'a-sink'},
+  surprised:{mouth:'M188 278 Q200 272 212 278 Q214 304 200 306 Q186 304 188 278 Z', open:true, brow:[[-20,0],[-20,0]], eye:[1.15,1.2], look:[0,0], anim:'a-pop'},
+  thinking: {mouth:'M180 282 Q205 276 225 272', brow:[[-4,-6],[-14,8]], eye:[1,1], look:[9,-8], anim:'a-think'},
+  angry:    {mouth:'M168 290 Q200 268 232 290', brow:[[4,22],[4,-22]], eye:[1,.8], look:[0,2], anim:'a-rage'},
+  sleepy:   {mouth:'M186 282 Q200 290 214 282', brow:[[4,4],[4,-4]], eye:[1,1], look:[0,0], anim:'a-sleep'},
+  love:     {mouth:'M162 268 Q200 310 238 268', brow:[[-8,-4],[-8,4]], eye:[1,1], look:[0,0], anim:'a-happy'},
+  confused: {mouth:'M168 282 Q184 270 200 282 T232 282', brow:[[-10,-8],[4,12]], eye:[1,1], look:[-8,-3], anim:'a-tilt'},
+  wink:     {mouth:'M160 264 Q200 326 240 264 Z', open:true, brow:[[0,-4],[-8,4]], eye:[1,1], look:[0,0]},
+  listening:{mouth:'M190 280 Q200 276 210 280 Q212 292 200 293 Q188 292 190 280 Z', open:true, brow:[[-8,-3],[-8,3]], eye:[1.1,1.1], look:[0,0], anim:'a-listen'},
+};
+const FACE_BLINK_SKIP = ['happy','laugh','sleepy','love'];
+
+/* ============ DOM ============ */
+const $ = id => document.getElementById(id);
+const svg = $('avatar'), bubble = $('bubble'), logEl = $('log');
+const mouth = $('mouth'), mouthClipPath = $('mouthClipPath');
+const talkFill = $('talkFill'), talkStroke = $('talkStroke'), talkClipPath = $('talkClipPath');
+const talkTeeth = $('talkTeeth'), talkTongue = $('talkTongue');
+const eyes = [...document.querySelectorAll('.eye')];
+const pupils = [...document.querySelectorAll('.pupilg')];
+const brows = [...document.querySelectorAll('.brow')];
+
+/* ============ Cosmetic Catalog & Outfit State ============ */
+const CATALOG = {
+  glasses: [
+    {id:'none', label:'None', icon:'🚫'},
+    {id:'square', label:'Nerd Frames', icon:'🤓'},
+    {id:'round', label:'Round Wire', icon:'👓'},
+    {id:'shades', label:'Dark Shades', icon:'🕶️'},
+    {id:'pixel', label:'Pixel Shades', icon:'👾'},
+    {id:'visor', label:'Cyber Visor', icon:'🥽'},
+  ],
+  hats: [
+    {id:'none', label:'None', icon:'🚫'},
+    {id:'cap', label:'BB Cap', icon:'🧢'},
+    {id:'tophat', label:'Top Hat', icon:'🎩'},
+    {id:'crown', label:'Crown', icon:'👑'},
+    {id:'cowboy', label:'Cowboy', icon:'🤠'},
+    {id:'wizard', label:'Wizard', icon:'🧙'},
+    {id:'party', label:'Party Hat', icon:'🎉'},
+  ],
+  scarfs: [
+    {id:'none', label:'None', icon:'🚫'},
+    {id:'red', label:'Crimson', main:'#e63946', stripe:'#ffd166'},
+    {id:'blue', label:'Frost Blue', main:'#3a86ff', stripe:'#caf0f8'},
+    {id:'black', label:'Midnight', main:'#2b2d42', stripe:'#adb5bd'},
+    {id:'gold', label:'Marigold', main:'#f4a261', stripe:'#fff3b0'},
+    {id:'green', label:'Forest', main:'#2a9d8f', stripe:'#e9c46a'},
+  ],
+  colors: [
+    {id:'cardboard', label:'Cardboard', front:'#c99a5b', side:'#a97b43', top:'#dcb67e', feet:'#6b4a2a'},
+    {id:'silver', label:'Silver', front:'#d8dee9', side:'#b8c2d1', top:'#eceff4', feet:'#4c566a'},
+    {id:'charcoal', label:'Charcoal', front:'#3b4252', side:'#2e3440', top:'#4c566a', feet:'#1e222a'},
+    {id:'blue', label:'Cobalt', front:'#3b82f6', side:'#2563eb', top:'#60a5fa', feet:'#1e3a8a'},
+    {id:'red', label:'Crimson', front:'#ef4444', side:'#dc2626', top:'#f87171', feet:'#7f1d1d'},
+    {id:'purple', label:'Royal', front:'#8b5cf6', side:'#7c3aed', top:'#a78bfa', feet:'#4c1d95'},
+  ],
+  combos: [
+    {id:'none', label:'Classic', icon:'📦'},
+    {id:'galaxy', label:'Galaxy', icon:'🌌', front:'#240046', side:'#10002b', top:'#3c096c', feet:'#5a189a'},
+    {id:'cyber', label:'Cyber Neon', icon:'🤖', front:'#14213d', side:'#0b132b', top:'#1d3557', feet:'#00f5d4'},
+    {id:'wood', label:'Oak Crate', icon:'🪵', front:'#9c6644', side:'#7f5539', top:'#b08968', feet:'#582f0e'},
+    {id:'ice', label:'Glacier Ice', icon:'🧊', front:'#90e0ef', side:'#48cae4', top:'#caf0f8', feet:'#0077b6'},
+    {id:'magma', label:'Magma', icon:'🌋', front:'#370617', side:'#1f030c', top:'#6a040f', feet:'#e85d04'},
+  ],
+  heroes: [
+    {id:'none', label:'None', icon:'🚫'},
+    {id:'spider', label:'Spider-Box', icon:'🕷️', front:'#d62828', side:'#b51d1d', top:'#ef233c', feet:'#1d3557'},
+    {id:'bat', label:'Bat-Box', icon:'🦇', front:'#4a4e69', side:'#22223b', top:'#6c757d', feet:'#111'},
+    {id:'iron', label:'Iron-Box', icon:'🦾', front:'#b5171e', side:'#800f14', top:'#d90429', feet:'#ffd166'},
+    {id:'cap', label:'Cap-Box', icon:'🛡️', front:'#1d4ed8', side:'#1e3a8a', top:'#3b82f6', feet:'#d62828'},
+    {id:'super', label:'Super-Box', icon:'⚡', front:'#2563eb', side:'#1d4ed8', top:'#3b82f6', feet:'#dc2626'},
+  ]
+};
+
+const DEFAULT_OUTFIT = {glasses:'square', hats:'cap', scarfs:'red', colors:'cardboard', combos:'none', heroes:'none'};
+let outfit = JSON.parse(localStorage.getItem('boxbot_outfit_v1') || 'null') || {...DEFAULT_OUTFIT};
+let savedOutfits = JSON.parse(localStorage.getItem('boxbot_saved_outfits') || '[]');
+let undoStack = [], redoStack = [], activeSkinTab = 'categories';
+
+function pushUndo(){
+  undoStack.push({...outfit});
+  if (undoStack.length > 25) undoStack.shift();
+  redoStack = [];
+}
+
+function applyOutfit(){
+  localStorage.setItem('boxbot_outfit_v1', JSON.stringify(outfit));
+
+  document.querySelectorAll('.cos-item').forEach(el => el.classList.remove('on'));
+
+  if (outfit.glasses !== 'none') $(`glass-${outfit.glasses}`)?.classList.add('on');
+  if (outfit.hats !== 'none') $(`hat-${outfit.hats}`)?.classList.add('on');
+
+  const scarfObj = CATALOG.scarfs.find(s => s.id === outfit.scarfs);
+  if (scarfObj && scarfObj.id !== 'none') {
+    $('scarfGroup').classList.add('on');
+    $('scarfBand').setAttribute('fill', scarfObj.main);
+    $('scarfTail').setAttribute('fill', scarfObj.main);
+    ['scarfStripes','scarfTailS1','scarfTailS2','scarfFringe'].forEach(id => $(id).setAttribute('stroke', scarfObj.stripe));
+  }
+
+  let pal = CATALOG.colors.find(c => c.id === outfit.colors) || CATALOG.colors[0];
+  $('boxTex').setAttribute('fill', 'url(#corr)');
+
+  if (outfit.combos !== 'none') {
+    const cb = CATALOG.combos.find(c => c.id === outfit.combos);
+    if (cb) {
+      pal = cb;
+      if (cb.id === 'galaxy') $('skinGalaxy').classList.add('on');
+      if (cb.id === 'cyber') $('skinCyber').classList.add('on');
+      if (cb.id === 'magma') $('skinMagma').classList.add('on');
+      if (cb.id === 'wood') $('boxTex').setAttribute('fill', 'url(#woodGrain)');
+    }
+  }
+
+  if (outfit.heroes !== 'none') {
+    const hr = CATALOG.heroes.find(h => h.id === outfit.heroes);
+    if (hr) {
+      pal = hr;
+      if (hr.id === 'spider') $('boxTex').setAttribute('fill', 'url(#spiderWeb)');
+      if (hr.id === 'bat') $('mask-bat').classList.add('on');
+      if (hr.id === 'iron') $('skinIron').classList.add('on');
+      if (hr.id === 'cap') $('skinCap').classList.add('on');
+      if (hr.id === 'super') $('skinSuper').classList.add('on');
+    }
+  }
+
+  $('boxFront').setAttribute('fill', pal.front);
+  $('boxSide').setAttribute('fill', pal.side);
+  $('boxTop').setAttribute('fill', pal.top);
+  $('footL').setAttribute('fill', pal.feet);
+  $('footR').setAttribute('fill', pal.feet);
+
+  renderSkinsBody();
+}
+
+function setOutfitProp(cat, id){
+  pushUndo();
+  outfit[cat] = id;
+  if (cat === 'colors') { outfit.combos = 'none'; outfit.heroes = 'none'; }
+  if (cat === 'combos' && id !== 'none') { outfit.heroes = 'none'; }
+  if (cat === 'heroes' && id !== 'none') { outfit.combos = 'none'; }
+  playCardboardPokeSound();
+  applyOutfit();
+}
+
+function randomizeOutfit(){
+  pushUndo();
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)].id;
+  outfit.glasses = pick(CATALOG.glasses);
+  outfit.hats = pick(CATALOG.hats);
+  outfit.scarfs = pick(CATALOG.scarfs);
+  const mode = Math.random();
+  if (mode < 0.45) {
+    outfit.colors = pick(CATALOG.colors); outfit.combos = 'none'; outfit.heroes = 'none';
+  } else if (mode < 0.75) {
+    outfit.combos = pick(CATALOG.combos.filter(x => x.id !== 'none')); outfit.heroes = 'none';
+  } else {
+    outfit.heroes = pick(CATALOG.heroes.filter(x => x.id !== 'none')); outfit.combos = 'none';
+  }
+  playEmotionSound('excited');
+  applyOutfit();
+}
+
+function renderSkinsBody(){
+  const body = $('skinsBody');
+  if (!body) return;
+
+  if (activeSkinTab === 'myskins') {
+    if (!savedOutfits.length) {
+      body.innerHTML = `<div style="text-align:center;padding:24px 10px;color:#7a5430;font-size:13.5px">No saved outfits yet!<br>Style BoxBot and tap <b>SAVE OUTFIT ♡</b> above.</div>`;
+      return;
+    }
+    body.innerHTML = savedOutfits.map((item, idx) => `
+      <div class="saved-card">
+        <span><b>${item.name}</b></span>
+        <div style="display:flex;gap:6px">
+          <button type="button" onclick="loadSavedOutfit(${idx})">Wear</button>
+          <button type="button" onclick="deleteSavedOutfit(${idx})" style="background:#ffd6d6">✕</button>
+        </div>
+      </div>
+    `).join('');
+    return;
+  }
+
+  if (activeSkinTab === 'presets') {
+    const presets = [
+      {name:'Classic BoxBot', data:{glasses:'none',hats:'none',scarfs:'none',colors:'cardboard',combos:'none',heroes:'none'}},
+      {name:'Studio Streetwear', data:{glasses:'square',hats:'cap',scarfs:'red',colors:'cardboard',combos:'none',heroes:'none'}},
+      {name:'Gentleman Box', data:{glasses:'round',hats:'tophat',scarfs:'black',colors:'charcoal',combos:'none',heroes:'none'}},
+      {name:'Galactic Wizard', data:{glasses:'visor',hats:'wizard',scarfs:'blue',colors:'purple',combos:'galaxy',heroes:'none'}},
+      {name:'Spider-Box Hero', data:{glasses:'none',hats:'none',scarfs:'none',colors:'red',combos:'none',heroes:'spider'}},
+      {name:'Dark Knight Box', data:{glasses:'none',hats:'none',scarfs:'gold',colors:'charcoal',combos:'none',heroes:'bat'}},
+    ];
+    body.innerHTML = presets.map((p, i) => `
+      <div class="saved-card">
+        <span>✨ <b>${p.name}</b></span>
+        <button type="button" id="presetBtn_${i}">Equip</button>
+      </div>
+    `).join('');
+    presets.forEach((p, i) => {
+      $(`presetBtn_${i}`).onclick = () => { pushUndo(); outfit = {...p.data}; playEmotionSound('happy'); applyOutfit(); };
+    });
+    return;
+  }
+
+  const sections = [
+    {key:'glasses', title:'👓 Glasses', count:'(6)'},
+    {key:'hats', title:'🎩 Hats', count:'(7)'},
+    {key:'scarfs', title:'🧣 Scarfs', count:'(6)'},
+    {key:'colors', title:'🎨 Colors', count:'(6)'},
+    {key:'combos', title:'✨ Overall Skin Combos', count:'(6)'},
+    {key:'heroes', title:'🦸 Superheroes', count:'(6)'},
+  ];
+
+  body.innerHTML = sections.map(sec => {
+    const items = CATALOG[sec.key];
+    const grid = items.map(it => {
+      const sel = outfit[sec.key] === it.id ? 'selected' : '';
+      let inner = it.icon || '';
+      if (sec.key === 'scarfs' && it.id !== 'none') {
+        inner = `<span style="font-size:19px;filter:drop-shadow(0 1px 0 #0003);color:${it.main}">🧣</span>`;
+      } else if (sec.key === 'colors') {
+        inner = `<span class="color-dot" style="background:${it.front}"></span>`;
+      }
+      return `<button type="button" class="swatch ${sel}" title="${it.label}" onclick="setOutfitProp('${sec.key}','${it.id}')">${inner}</button>`;
+    }).join('');
+    return `<div class="cat-block"><h3>${sec.title} <span>${sec.count}</span></h3><div class="swatch-grid">${grid}</div></div>`;
+  }).join('');
+}
+
+window.loadSavedOutfit = idx => {
+  if (!savedOutfits[idx]) return;
+  pushUndo();
+  outfit = {...savedOutfits[idx].data};
+  playEmotionSound('happy');
+  applyOutfit();
+};
+window.deleteSavedOutfit = idx => {
+  savedOutfits.splice(idx, 1);
+  localStorage.setItem('boxbot_saved_outfits', JSON.stringify(savedOutfits));
+  renderSkinsBody();
+};
+
+$('btnSaveOutfit').onclick = () => {
+  const name = `Outfit #${savedOutfits.length + 1}`;
+  savedOutfits.unshift({name, data:{...outfit}});
+  localStorage.setItem('boxbot_saved_outfits', JSON.stringify(savedOutfits));
+  playEmotionSound('love');
+  activeSkinTab = 'myskins';
+  document.querySelectorAll('.stab').forEach(b => b.classList.toggle('active', b.dataset.stab === 'myskins'));
+  renderSkinsBody();
+};
+
+document.querySelectorAll('.stab').forEach(btn => {
+  btn.onclick = () => {
+    activeSkinTab = btn.dataset.stab;
+    document.querySelectorAll('.stab').forEach(b => b.classList.toggle('active', b === btn));
+    renderSkinsBody();
+  };
+});
+
+/* Left Navigation Rail & Quick Stage Buttons */
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.onclick = () => {
+    const mode = btn.dataset.nav;
+    if (mode === 'randomize') {
+      randomizeOutfit();
+      return;
+    }
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b === btn));
+    const main = $('mainGrid');
+    if (mode === 'skins' || mode === 'collection') {
+      main.classList.add('skins-open');
+      if (mode === 'collection') {
+        activeSkinTab = 'myskins';
+        document.querySelectorAll('.stab').forEach(b => b.classList.toggle('active', b.dataset.stab === 'myskins'));
+        renderSkinsBody();
+      }
+    } else {
+      main.classList.remove('skins-open');
+    }
+  };
+});
+
+$('btnUndo').onclick = () => {
+  if (!undoStack.length) return;
+  redoStack.push({...outfit});
+  outfit = undoStack.pop();
+  playCardboardPokeSound();
+  applyOutfit();
+};
+$('btnRedo').onclick = () => {
+  if (!redoStack.length) return;
+  undoStack.push({...outfit});
+  outfit = redoStack.pop();
+  playCardboardPokeSound();
+  applyOutfit();
+};
+$('btnResetOutfit').onclick = () => {
+  pushUndo();
+  outfit = {glasses:'none',hats:'none',scarfs:'none',colors:'cardboard',combos:'none',heroes:'none'};
+  playEmotionSound('neutral');
+  applyOutfit();
+};
+$('btnShuffleOutfit').onclick = randomizeOutfit;
+
+/* ============ Core Avatar State & Render ============ */
+const S = {
+  emotion: 'happy',
+  talking: false,
+  gaze: [0,0],
+  blink: 1,
+  busy: false,
+  leanQuestion: false,
+  hardQuestion: false,
+};
+let lastActive = Date.now();
+
+function render(){
+  const e = EMO[S.emotion] || EMO.neutral;
+  const anim = e.anim || (S.talking ? 'a-talk' : '');
+  const poke = svg.classList.contains('poke') ? ' poke' : '';
+  const lean = S.leanQuestion ? ' lean-question' : '';
+  const hard = S.hardQuestion ? ' hard-q' : '';
+
+  svg.setAttribute('class', `e-${S.emotion} ${anim}${S.talking?' talking':''}${poke}${lean}${hard}`);
+  mouth.setAttribute('d', e.mouth);
+  mouthClipPath.setAttribute('d', e.mouth);
+  mouth.setAttribute('fill', e.open ? '#4a1a1a' : 'none');
+  eyes.forEach(el => el.style.transform = `scale(${e.eye[0]},${e.eye[1]*S.blink})`);
+  pupils.forEach(el => el.style.transform = `translate(${S.gaze[0]+e.look[0]}px,${S.gaze[1]+e.look[1]}px)`);
+  brows.forEach((el,i) => el.style.transform = `translateY(${e.brow[i][0]}px) rotate(${e.brow[i][1]}deg)`);
+}
+
+function setEmotion(name){
+  if (!EMO[name]) name = 'neutral';
+  S.emotion = name; render();
+}
+
+function updateMemoryTag(name, favorites){
+  const parts = [];
+  if (name) parts.push(name);
+  if (favorites && favorites.length) parts.push(`♥ ${favorites.slice(-3).join(', ')}`);
+  $('memTag').textContent = parts.length ? `Remembers: ${parts.join(' • ')}` : 'Memory: empty';
+}
+
+function setStatus(t, mode){
+  const s = $('status');
+  s.textContent = t;
+  s.classList.toggle('live', mode === true || mode === 'live');
+  s.classList.toggle('wake', mode === 'wake');
+}
+
+function touch(){
+  lastActive = Date.now();
+  if (S.emotion === 'sleepy') {
+    setEmotion('surprised');
+    setTimeout(()=>{ if(!S.busy) setEmotion('neutral'); }, 900);
+  }
+}
+
+/* ============ Web Audio SFX Engine (Poke, Tape Rip & All 12 Emotions) ============ */
+let sfxCtx = null;
+function getAudioCtx(){
+  sfxCtx = sfxCtx || new (window.AudioContext || window.webkitAudioContext)();
+  if (sfxCtx.state === 'suspended') sfxCtx.resume();
+  return sfxCtx;
+}
+
+function playTone(ctx, type, freqs, times, gainPeak = 0.2, delay = 0){
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  const start = ctx.currentTime + delay;
+  osc.frequency.setValueAtTime(freqs[0], start);
+  for (let i = 1; i < freqs.length; i++) {
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqs[i]), start + times[i]);
+  }
+  const end = start + times[times.length - 1];
+  gain.gain.setValueAtTime(0.001, start);
+  gain.gain.linearRampToValueAtTime(gainPeak, start + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, end);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(start); osc.stop(end + 0.02);
+}
+
+function playCardboardPokeSound(){
+  try {
+    const ctx = getAudioCtx();
+    playTone(ctx, 'triangle', [165, 68], [0, 0.14], 0.42);
+    playTone(ctx, 'sine', [520, 980, 740], [0, 0.06, 0.15], 0.16, 0.02);
+  } catch(e){}
+}
+
+function playTapeRipSound(){
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const dur = 0.42;
+    const bufferSize = Math.floor(ctx.sampleRate * dur);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      const burst = Math.sin(i * 0.055) > 0.2 ? 1.0 : 0.35;
+      data[i] = (Math.random() * 2 - 1) * burst;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(2100, now);
+    filter.frequency.exponentialRampToValueAtTime(3800, now + dur * 0.7);
+    filter.frequency.exponentialRampToValueAtTime(1600, now + dur);
+    filter.Q.value = 2.8;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.26, now + 0.05);
+    gain.gain.setValueAtTime(0.22, now + dur * 0.75);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    noise.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    noise.start(now); noise.stop(now + dur);
+  } catch(e){}
+}
+
+function playEmotionSound(emo){
+  try {
+    const ctx = getAudioCtx();
+    switch (emo) {
+      case 'neutral':
+        playTone(ctx, 'triangle', [220, 290], [0, 0.12], 0.22);
+        break;
+      case 'happy':
+        playTone(ctx, 'sine', [523.25, 523.25], [0, 0.14], 0.18, 0);
+        playTone(ctx, 'sine', [659.25, 659.25], [0, 0.14], 0.18, 0.09);
+        playTone(ctx, 'sine', [783.99, 783.99], [0, 0.22], 0.20, 0.18);
+        break;
+      case 'excited':
+        [523, 659, 784, 1046, 1318].forEach((f, i) =>
+          playTone(ctx, 'triangle', [f, f * 1.04], [0, 0.12], 0.18, i * 0.055)
+        );
+        break;
+      case 'laugh':
+        [440, 520, 460, 560, 490].forEach((f, i) =>
+          playTone(ctx, 'sine', [f, f * 1.25, f * 0.9], [0, 0.04, 0.09], 0.2, i * 0.095)
+        );
+        break;
+      case 'sad':
+        playTone(ctx, 'sine', [440, 370, 293.66], [0, 0.25, 0.55], 0.22);
+        break;
+      case 'surprised':
+        playTone(ctx, 'sine', [280, 960, 780], [0, 0.14, 0.26], 0.24);
+        break;
+      case 'thinking':
+        playTone(ctx, 'sine', [420, 460], [0, 0.14], 0.16, 0);
+        playTone(ctx, 'sine', [540, 580], [0, 0.18], 0.16, 0.18);
+        break;
+      case 'angry':
+        playTapeRipSound();
+        playTone(ctx, 'sawtooth', [150, 105], [0, 0.3], 0.15, 0.05);
+        break;
+      case 'sleepy':
+        playTone(ctx, 'sine', [360, 270, 195], [0, 0.35, 0.7], 0.17);
+        break;
+      case 'love':
+        playTone(ctx, 'sine', [587.33, 880], [0, 0.24], 0.18, 0);
+        playTone(ctx, 'sine', [659.25, 987.77], [0, 0.34], 0.18, 0.16);
+        break;
+      case 'confused':
+        playTone(ctx, 'triangle', [330, 290, 490], [0, 0.15, 0.36], 0.2);
+        break;
+      case 'wink':
+        playTone(ctx, 'sine', [880, 1318.5], [0, 0.14], 0.18, 0);
+        playTone(ctx, 'sine', [1568, 1568], [0, 0.18], 0.14, 0.07);
+        break;
+    }
+  } catch(e){}
+}
+
+/* ============ Idle & Thinking Eye Animations ============ */
+function blink(){
+  if (!FACE_BLINK_SKIP.includes(S.emotion)) {
+    S.blink = .08; render();
+    setTimeout(()=>{ S.blink = 1; render(); }, 120);
+  }
+  setTimeout(blink, 1800 + Math.random()*3500);
+}
+setTimeout(blink, 2000);
+
+let thinkLookStep = 0;
+const THINK_GAZES = [[8,-8], [-9,-7], [10,-3], [-7,-9]];
+setInterval(() => {
+  if (S.emotion === 'thinking') {
+    S.gaze = THINK_GAZES[thinkLookStep % THINK_GAZES.length];
+    thinkLookStep++;
+    render();
+  }
+}, 550);
+
+function wander(){
+  if (!S.busy && !S.talking && S.emotion === 'neutral' && !hovering) {
+    S.gaze = [(Math.random()-.5)*14, (Math.random()-.5)*8]; render();
+    setTimeout(()=>{ S.gaze=[0,0]; render(); }, 1200 + Math.random()*800);
+  }
+  setTimeout(wander, 3000 + Math.random()*3000);
+}
+setTimeout(wander, 3000);
+
+setInterval(()=>{
+  if (S.busy || S.talking) return;
+  const idle = (Date.now() - lastActive)/1000;
+  if (idle > 35 && S.emotion !== 'sleepy') setEmotion('sleepy');
+  else if (idle > 12 && idle < 14 && S.emotion === 'neutral') {
+    setEmotion('wink'); setTimeout(()=>{ if(S.emotion==='wink') setEmotion('neutral'); }, 1200);
+  }
+}, 1000);
+
+let hovering = false, hoverT = 0;
+document.addEventListener('mousemove', ev => {
+  if (S.emotion === 'thinking') return;
+  const r = svg.getBoundingClientRect();
+  const dx = (ev.clientX - (r.left + r.width/2)) / r.width;
+  const dy = (ev.clientY - (r.top + r.height*.45)) / r.height;
+  S.gaze = [Math.max(-8, Math.min(8, dx*30)), Math.max(-6, Math.min(6, dy*22))];
+  hovering = true; clearTimeout(hoverT); hoverT = setTimeout(()=>hovering=false, 2500);
+  render();
+});
+
+/* poke the box */
+let pokes = 0, pokeReset;
+svg.addEventListener('click', () => {
+  touch();
+  if (S.busy) return;
+  pokes++; clearTimeout(pokeReset); pokeReset = setTimeout(()=>pokes=0, 2500);
+  svg.classList.remove('poke'); void svg.getBoundingClientRect(); svg.classList.add('poke');
+  setTimeout(()=>{ svg.classList.remove('poke'); render(); }, 460);
+
+  playCardboardPokeSound();
+
+  let emo, line;
+  if (pokes >= 5) {
+    emo = 'angry';
+    line = 'Hey! I said FRAGILE! My tape is peeling off!';
+    playTapeRipSound();
+  }
+  else if (pokes >= 3) { emo='confused'; line='Why do you keep poking me?'; }
+  else {
+    emo = ['surprised','laugh','wink'][Math.floor(Math.random()*3)];
+    line = {
+      surprised:'Whoa! Careful, I am fragile!',
+      laugh:'Hehe, that tickles my cardboard!',
+      wink:'You found my secret poke spot.'
+    }[emo];
+  }
+  setEmotion(emo); bubble.textContent = line;
+  setTimeout(()=>{ if(!S.busy && !S.talking) setEmotion('neutral'); }, 1800);
+});
+
+/* emotion preview chips */
+const chips = $('chips');
+Object.keys(EMO).filter(k=>k!=='listening').forEach(k=>{
+  const b = document.createElement('button'); b.className='chip'; b.type='button'; b.textContent=k;
+  b.onclick = ()=>{
+    touch();
+    if(!S.busy) {
+      setEmotion(k);
+      playEmotionSound(k);
+    }
+  };
+  chips.appendChild(b);
+});
+
+/* ============ Speech + Phoneme-Shaped Lip-Sync ============ */
+let audioCtx = null, analyser = null, timeData = null, freqData = null, currentCancel = null;
+let smOpen = 0, smWidth = 0.5, smRound = 0;
+
+function setMouthViseme(open, width, round){
+  const halfW = 14 + width * 16 - round * 8;
+  const topY = 276 - open * 6;
+  const botY = 282 + open * 28;
+  const ctrlTopY = topY - (round * 4) + (width * 2);
+  const ctrlBotY = botY + (round * 6);
+
+  const d = `M ${200 - halfW} ${topY + 3} Q 200 ${ctrlTopY} ${200 + halfW} ${topY + 3} Q ${200 + halfW * 0.92} ${ctrlBotY} 200 ${ctrlBotY} Q ${200 - halfW * 0.92} ${ctrlBotY} ${200 - halfW} ${topY + 3} Z`;
+  talkFill.setAttribute('d', d);
+  talkStroke.setAttribute('d', d);
+  talkClipPath.setAttribute('d', d);
+
+  talkTeeth.setAttribute('y', topY - 2);
+  talkTeeth.setAttribute('opacity', open > 0.25 && round < 0.5 ? 1 : 0);
+  talkTongue.setAttribute('cy', botY - 4);
+  talkTongue.setAttribute('rx', Math.max(8, halfW * 0.65));
+  talkTongue.setAttribute('opacity', open > 0.35 ? 1 : 0);
+}
+
+function mouthLoop(){
+  if (!S.talking) return;
+  let targetOpen = 0, targetWidth = 0.5, targetRound = 0;
+
+  if (analyser) {
+    analyser.getByteTimeDomainData(timeData);
+    analyser.getByteFrequencyData(freqData);
+
+    let sum = 0;
+    for (const v of timeData) { const d = (v - 128) / 128; sum += d * d; }
+    const rms = Math.sqrt(sum / timeData.length);
+    targetOpen = Math.min(1, rms * 5.2);
+
+    let lowE = 0, midE = 0, highE = 0;
+    for (let i = 2; i < 14; i++) lowE += freqData[i];
+    for (let i = 14; i < 36; i++) midE += freqData[i];
+    for (let i = 36; i < 80; i++) highE += freqData[i];
+
+    const totalE = lowE + midE + highE + 1;
+    const lowRatio = lowE / totalE;
+    const highRatio = highE / totalE;
+
+    if (targetOpen < 0.12) {
+      targetWidth = 0.35; targetRound = 0;
+    } else if (highRatio > 0.26) {
+      targetWidth = 0.95; targetRound = 0;
+    } else if (lowRatio > 0.62 && targetOpen < 0.65) {
+      targetWidth = 0.15; targetRound = 0.9;
+    } else {
+      targetWidth = 0.65; targetRound = 0.15;
+    }
+  } else {
+    const t = performance.now();
+    targetOpen = 0.3 + 0.5 * Math.abs(Math.sin(t / 105));
+    targetWidth = 0.5 + 0.4 * Math.sin(t / 170);
+    targetRound = Math.max(0, Math.cos(t / 230)) * 0.7;
+  }
+
+  smOpen += (targetOpen - smOpen) * 0.5;
+  smWidth += (targetWidth - smWidth) * 0.4;
+  smRound += (targetRound - smRound) * 0.4;
+  setMouthViseme(smOpen, smWidth, smRound);
+
+  requestAnimationFrame(mouthLoop);
+}
+
+function startTalking(){ S.talking = true; render(); requestAnimationFrame(mouthLoop); }
+function stopTalking(){ S.talking = false; smOpen = 0; render(); }
+function stopSpeaking(){ if (currentCancel) { currentCancel(); currentCancel = null; } }
+
+function typeText(text, ms){
+  return new Promise(res => {
+    let i = 0; bubble.classList.add('cursor');
+    const t = setInterval(()=>{
+      i++; bubble.textContent = text.slice(0,i); bubble.scrollTop = bubble.scrollHeight;
+      if (i >= text.length) { clearInterval(t); bubble.classList.remove('cursor'); res(); }
+    }, ms);
+    currentCancel = ()=>{ clearInterval(t); bubble.textContent = text; bubble.classList.remove('cursor'); res(); };
+  });
+}
+
+async function playAudio(url, text){
+  return new Promise(async res => {
+    const audio = new Audio(url);
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+      const src = audioCtx.createMediaElementSource(audio);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.45;
+      timeData = new Uint8Array(analyser.fftSize);
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+      src.connect(analyser); analyser.connect(audioCtx.destination);
+    } catch(e){ analyser = null; }
+    let typer;
+    const done = ()=>{ clearInterval(typer); bubble.classList.remove('cursor'); bubble.textContent = text; analyser = null; stopTalking(); res(); };
+    audio.onended = done; audio.onerror = done;
+    currentCancel = ()=>{ audio.pause(); done(); };
+    audio.onloadedmetadata = ()=>{
+      const dur = isFinite(audio.duration) ? audio.duration : text.length*0.06;
+      let i = 0; bubble.classList.add('cursor');
+      typer = setInterval(()=>{
+        i++; bubble.textContent = text.slice(0,i); bubble.scrollTop = bubble.scrollHeight;
+        if(i>=text.length) clearInterval(typer);
+      }, Math.max(15, dur*1000*0.92/text.length));
+    };
+    try { await audio.play(); startTalking(); } catch(e){ done(); }
+  });
+}
+
+async function speak(text, emotion, lang, sequence = []){
+  setEmotion(emotion);
+  if (emotion === 'angry') playTapeRipSound();
+
+  let url = null;
+  if ($('voiceToggle').checked) {
+    setStatus('Warming up voice…', 'live');
+    try {
+      const r = await fetch('/api/tts', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text, lang: lang || 'en'})});
+      if (r.ok) url = URL.createObjectURL(await r.blob());
+    } catch(e){}
+  }
+  addLog('bot', text);
+  setStatus('Speaking…', 'live');
+
+  let seqTimer = null;
+  if (Array.isArray(sequence) && sequence.length > 0) {
+    let idx = 0;
+    const step = () => {
+      const em = sequence[idx % sequence.length];
+      setEmotion(em);
+      if (em === 'angry') playTapeRipSound();
+      idx++;
+    };
+    step();
+    seqTimer = setInterval(step, 650);
+  }
+
+  if (url) { await playAudio(url, text); URL.revokeObjectURL(url); }
+  else { startTalking(); await typeText(text, 28); stopTalking(); }
+
+  if (seqTimer) clearInterval(seqTimer);
+  currentCancel = null;
+  await new Promise(r=>setTimeout(r, 900));
+  S.hardQuestion = false;
+  setEmotion('neutral');
+}
+
+/* ============ Chat & Question Reactions ============ */
+function addLog(who, text){
+  const d = document.createElement('div'); d.className = 'msg ' + who; d.textContent = text;
+  logEl.appendChild(d); logEl.scrollTop = logEl.scrollHeight;
+}
+
+function looksHardOrQuestion(text){
+  const isQuestion = /\?|\b(why|how|what|when|where|who|explain|solve|calculate|prove|write|code)\b/i.test(text);
+  const isHard = text.length > 55 || /[\d+\-*/^=]{3,}|\b(quantum|algorithm|calculus|integral|complexity|theorem|paradox|code|python|debug)\b/i.test(text);
+  return {isQuestion, isHard};
+}
+
+async function ask(text){
+  text = text.trim(); if (!text) return;
+  stopSpeaking(); stopTalking();
+  touch(); S.busy = true; $('send').disabled = true;
+  addLog('you', text);
+
+  const {isQuestion, isHard} = looksHardOrQuestion(text);
+  S.leanQuestion = isQuestion;
+  S.hardQuestion = isHard;
+
+  setStatus('Thinking…', 'live');
+  setEmotion('thinking');
+  bubble.textContent = '…';
+
+  const selectedLang = $('langSelect').value || 'auto';
+  let data;
+  try {
+    const r = await fetch('/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:text, lang:selectedLang})
+    });
+    data = await r.json();
+  } catch(e){
+    data = {reply:"I can't reach my brain. Is the server running?", emotion:'sad', lang:'en', sequence:[], hard:false};
+  }
+
+  S.leanQuestion = false;
+  S.hardQuestion = !!data.hard;
+  updateMemoryTag(data.name, data.favorites);
+
+  await speak(data.reply, data.emotion, data.lang, data.sequence);
+  S.busy = false; $('send').disabled = false;
+  lastActive = Date.now();
+  restoreIdleStatus();
+}
+
+$('form').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const v = $('input').value; $('input').value = '';
+  ask(v);
+});
+$('input').addEventListener('input', touch);
+
+$('memTag').addEventListener('click', async () => {
+  if (!confirm("Erase BoxBot's memory of your name and favorites?")) return;
+  await fetch('/api/memory/clear', {method:'POST'});
+  updateMemoryTag('', []);
+  bubble.textContent = "Poof! Fresh cardboard! Who are you again?";
+  setEmotion('surprised');
+  playEmotionSound('surprised');
+});
+
+/* ============ Hands-Free VAD + Wake Word ("Hey Box") + Cloud Whisper ============ */
+let rec = null, chunks = [], recording = false;
+let vadStream = null, vadCtx = null, vadAnalyser = null, vadRaf = null;
+let wakeRec = null, handsFreeActive = false;
+
+const handsFreeToggle = $('handsFreeToggle');
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function restoreIdleStatus(){
+  if (handsFreeToggle.checked) {
+    setStatus('Listening for "Hey Box"…', 'wake');
+    $('mic').classList.add('standby');
+    startWakeWordListener();
+  } else {
+    setStatus('Ready', false);
+    $('mic').classList.remove('standby');
+  }
+}
+
+handsFreeToggle.addEventListener('change', () => {
+  if (handsFreeToggle.checked) {
+    if (!SpeechRec) {
+      bubble.textContent = 'Your browser does not support background wake-word detection—use Chrome or Edge, or tap the mic for auto-stop recording!';
+    }
+    restoreIdleStatus();
+  } else {
+    stopWakeWordListener();
+    $('mic').classList.remove('standby');
+    if (!recording && !S.busy) setStatus('Ready', false);
+  }
+});
+
+function startWakeWordListener(){
+  if (!SpeechRec || !handsFreeToggle.checked || recording || S.busy || handsFreeActive) return;
+  try {
+    wakeRec = new SpeechRec();
+    wakeRec.continuous = true;
+    wakeRec.interimResults = true;
+    wakeRec.lang = 'en-US';
+    handsFreeActive = true;
+
+    wakeRec.onresult = (ev) => {
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const transcript = ev.results[i][0].transcript.toLowerCase();
+        if (/\b(hey|hi|okay)\s+(box|boxbot|bucks)\b/.test(transcript)) {
+          stopWakeWordListener();
+          touch();
+          startAutoStopRecording(true);
+          return;
+        }
+      }
+    };
+
+    wakeRec.onend = () => {
+      handsFreeActive = false;
+      if (handsFreeToggle.checked && !recording && !S.busy) {
+        setTimeout(startWakeWordListener, 250);
+      }
+    };
+    wakeRec.onerror = () => { handsFreeActive = false; };
+    wakeRec.start();
+  } catch(e){ handsFreeActive = false; }
+}
+
+function stopWakeWordListener(){
+  handsFreeActive = false;
+  if (wakeRec) {
+    try { wakeRec.onend = null; wakeRec.stop(); } catch(e){}
+    wakeRec = null;
+  }
+}
+
+function cleanupVAD(){
+  if (vadRaf) { cancelAnimationFrame(vadRaf); vadRaf = null; }
+  if (vadCtx) { try { vadCtx.close(); } catch(e){} vadCtx = null; }
+  if (vadStream) { vadStream.getTracks().forEach(t => t.stop()); vadStream = null; }
+}
+
+async function startAutoStopRecording(fromWakeWord = false){
+  if (recording || S.busy) return;
+  stopWakeWordListener();
+  stopSpeaking();
+  touch();
+
+  try {
+    vadStream = await navigator.mediaDevices.getUserMedia({audio:true});
+    rec = new MediaRecorder(vadStream);
+    chunks = [];
+    let hasSpoken = false;
+    let silenceStart = null;
+    const recordStart = performance.now();
+
+    vadCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = vadCtx.createMediaStreamSource(vadStream);
+    vadAnalyser = vadCtx.createAnalyser();
+    vadAnalyser.fftSize = 512;
+    src.connect(vadAnalyser);
+    const buf = new Uint8Array(vadAnalyser.fftSize);
+
+    const checkSilence = () => {
+      if (!recording) return;
+      vadAnalyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (const v of buf) { const d = (v - 128) / 128; sum += d * d; }
+      const rms = Math.sqrt(sum / buf.length);
+      const now = performance.now();
+
+      if (rms > 0.025) {
+        hasSpoken = true;
+        silenceStart = null;
+      } else if (hasSpoken) {
+        if (!silenceStart) silenceStart = now;
+        if (now - silenceStart > 1300) {
+          rec.stop();
+          return;
+        }
+      } else if (now - recordStart > 6500) {
+        rec.stop();
+        return;
+      }
+      vadRaf = requestAnimationFrame(checkSilence);
+    };
+
+    rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    rec.onstop = async () => {
+      recording = false;
+      $('mic').classList.remove('rec');
+      const mime = rec.mimeType || 'audio/webm';
+      cleanupVAD();
+
+      if (!hasSpoken) {
+        setEmotion('neutral');
+        if (fromWakeWord) bubble.textContent = "Yes? I'm here whenever you need me!";
+        restoreIdleStatus();
+        return;
+      }
+      const blob = new Blob(chunks, {type:mime});
+      await transcribeAndAsk(blob, mime);
+    };
+
+    rec.start();
+    recording = true;
+    $('mic').classList.add('rec');
+    setStatus('Listening… (auto-stops when you pause)', 'live');
+    setEmotion('listening');
+    bubble.textContent = fromWakeWord ? "I'm listening! Go ahead…" : "I'm listening…";
+    vadRaf = requestAnimationFrame(checkSilence);
+  } catch(e){
+    cleanupVAD();
+    bubble.textContent = 'I could not open the microphone. Please allow mic access (use http://127.0.0.1:8000).';
+    setEmotion('sad');
+  }
+}
+
+$('mic').addEventListener('click', async () => {
+  touch();
+  if (recording) { rec.stop(); return; }
+  await startAutoStopRecording(false);
+});
+
+async function transcribeAndAsk(blob, mime){
+  S.busy = true; setStatus('Understanding your voice…', 'live'); setEmotion('thinking'); bubble.textContent = '…';
+  const ext = mime.includes('mp4') ? 'mp4' : mime.includes('ogg') ? 'ogg' : 'webm';
+  const fd = new FormData(); fd.append('audio', blob, `speech.${ext}`);
+  try {
+    const r = await fetch('/api/transcribe', {method:'POST', body:fd});
+    const j = await r.json();
+    S.busy = false;
+    const cleaned = (j.text || '').replace(/^(hey|hi|okay)\s+(box|boxbot|bucks)[,.\s!]*/i, '').trim();
+    if (cleaned) { await ask(cleaned); return; }
+    bubble.textContent = "I didn't catch that. Could you say it again?"; setEmotion('confused');
+  } catch(e){
+    bubble.textContent = 'My cloud ears had a hiccup. Check your Groq API key!'; setEmotion('sad');
+  }
+  S.busy = false;
+  restoreIdleStatus();
+  setTimeout(()=>{ if(!S.busy) setEmotion('neutral'); }, 2000);
+}
+
+/* ============ Boot & Welcome Back Greeting ============ */
+async function init(){
+  applyOutfit();
+  render();
+  try {
+    const r = await fetch('/api/state');
+    const st = await r.json();
+    updateMemoryTag(st.name, st.favorites);
+
+    if (st.name || (st.favorites && st.favorites.length)) {
+      const who = st.name ? `, ${st.name}` : '';
+      const favNote = st.favorites && st.favorites.length
+        ? ` I still remember you like ${st.favorites.slice(-2).join(' and ')}!`
+        : '';
+      bubble.textContent = `Welcome back${who}!${favNote} Good to see you again!`;
+      setEmotion('happy');
+    }
+  } catch(e){}
+  setTimeout(()=>{ if(!S.busy) setEmotion('neutral'); }, 2200);
+}
+init();
+</script>
+</body>
+</html>
